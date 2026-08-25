@@ -1,16 +1,7 @@
 """
-Match Plaid-reported third-party bank account owners against Mercury customer
-data, to flag links whose reported identity doesn't plausibly correspond to
-the Mercury customer that created them.
-
-Approach: score each link on three kinds of evidence (name, email, phone) and
-sum a weighted score. A full name match (personal or business) is treated as
-strong evidence on its own; email/phone matches are supporting evidence; a
-bare first-name-or-last-name fragment is weak evidence. This weighting was
-reverse-engineered from the fraud team's comments in the sample data -- e.g.
-a phone-only match wasn't enough for them to be confident (Link 2), while a
-nickname-resolved full name match with no contact-detail overlap at all was
-(Link 6). See NOTES.md for the full reasoning and edge cases considered.
+Flags Plaid-linked third-party bank accounts whose reported owner doesn't
+plausibly match the Mercury customer that linked them. See NOTES.md for the
+scoring rationale and edge cases considered.
 """
 
 import json
@@ -35,12 +26,7 @@ BUSINESS_SUFFIXES = {
 
 
 def load_nickname_groups(path):
-    """Maps a name to the set of equivalence-group line numbers it appears in.
-
-    A name can appear in more than one line (e.g. "cy" is a nickname for both
-    "cyrus"/"cyril" and, separately, "cyrenius"), so equivalence is "do their
-    group sets overlap" rather than "do they map to the same single group".
-    """
+    """Maps a name to the set of equivalence-group line numbers it appears in (a name can be on more than one line)."""
     name_to_groups = {}
     with open(path) as f:
         for line_no, line in enumerate(f):

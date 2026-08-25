@@ -1,5 +1,26 @@
 # Notes on the ACH fraud-match solution
 
+## How it works
+
+- **Inputs**: `mercury-customers.json`, `third-party-banks.json`, and
+  `extra-questions/nicknames.txt`.
+- **Normalization**: names are lowercased with punctuation and
+  honorifics/middle-initials stripped; business names additionally have
+  common entity suffixes (`inc`, `llc`, `technologies`, ...) stripped;
+  phone numbers are reduced to their last 10 digits; emails are
+  lowercased/trimmed.
+- **Nicknames**: `nicknames.txt` is parsed into a map of name → set of
+  line numbers it appears on. Two names are nickname-equivalent if their
+  sets overlap (a name can legitimately appear on more than one line,
+  e.g. "cy" nicknames both "cyril" and, separately, "cyrenius").
+- **Fuzzy fallback**: if a name isn't an exact or nickname match,
+  `difflib.SequenceMatcher` ratio ≥ 0.85 catches minor typos.
+- **Scoring**: each link earns points from three independent checks —
+  a full personal or business name match scores 3, an email match scores
+  2, a phone match scores 2, and a bare first-/last-name fragment scores
+  1. The three category scores are summed.
+- **Decision**: `Match` if the total is ≥ 3, else `Mismatch`.
+
 ## AI usage disclosure
 
 I used Claude Code throughout: to reverse-engineer the fraud team's implicit
