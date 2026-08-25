@@ -1,0 +1,67 @@
+[
+{
+	"mercuryCompanyId": 1,
+	"users": [
+		{ "firstName": "John",
+		  "lastName": "Smith",
+		  "email": "john@example.com"
+		}
+	],
+	"tradeName": "InfoLinks",
+	"legalName": "InfoLinks Technologies, Inc.",
+	"contactEmail": "contact@infolinks.com",
+	"contactPhoneNumber": "5557609870"
+},
+{
+	"mercuryCompanyId": 2,
+	"users": [
+		{ "firstName": "Emmanuel",
+		  "lastName": "Windal",
+		  "email": "biker76@example.fr"
+		}
+	],
+	"tradeName": "Bikes by Emmanuel",
+	"legalName": "Sports Inc.",
+	"contactEmail": "biker76@example.fr",
+	"contactPhoneNumber": "5550989870"
+},
+{
+	"mercuryCompanyId": 3,
+	"users": [
+		{ "firstName": "Ram",
+		  "lastName": "Nguyen",
+		  "email": "ram@example.com"
+		}
+	],
+	"tradeName": "Ram's Kitchen",
+	"legalName": "Ram's Kitchen",
+	"contactEmail": "ram@example.fr",
+	"contactPhoneNumber": "5550989532"
+},
+{
+	"mercuryCompanyId": 4,
+	"users": [
+		{ "firstName": "Cyril",
+		  "lastName": "Windhorst",
+		  "email": "cy@example.com"
+		}
+	],
+	"tradeName": "Cy's Megacorp",
+	"legalName": "Cy's Megacorp LLC.",
+	"contactEmail": "cy@example.com",
+	"contactPhoneNumber": "5550109988"
+},
+{
+	"mercuryCompanyId": 5,
+	"users": [
+		{ "firstName": "Lassad",
+		  "lastName": "Riviero",
+		  "email": "lassad@hey.com"
+		}
+	],
+	"tradeName": "Lassad's Music",
+	"legalName": "LASSAD MEDIA INC",
+	"contactEmail": "lassad@example.com",
+	"contactPhoneNumber": "9915554035"
+}
+]
