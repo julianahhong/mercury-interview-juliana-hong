@@ -13,8 +13,9 @@
   line numbers it appears on. Two names are nickname-equivalent if their
   sets overlap (a name can legitimately appear on more than one line,
   e.g. "cy" nicknames both "cyril" and, separately, "cyrenius").
-- **Fuzzy fallback**: if a name isn't an exact or nickname match,
-  `difflib.SequenceMatcher` ratio ≥ 0.85 catches minor typos.
+- **Fuzzy fallback**: if a name isn't an exact or nickname match, Jaro-Winkler
+  similarity (via `rapidfuzz`) ≥ 0.85 catches minor typos, skipped for tokens
+  under 4 characters (see "Fuzzy matching: Jaro-Winkler" below).
 - **Scoring**: each link earns points from three independent checks —
   a full personal or business name match scores 3, an email match scores
   2, a phone match scores 2, and a bare first-/last-name fragment scores
@@ -64,7 +65,7 @@ Match. This reproduces the fraud team's call on all 9 sample links.
   one nickname-equivalence group (e.g. "cy" is a nickname under three
   different lines in the file; a naive "map name -> one group id" approach
   breaks this, so equivalence is computed as group-set overlap instead)
-- Minor spelling variation, via fuzzy string matching (`difflib`), on top of
+- Minor spelling variation, via Jaro-Winkler fuzzy matching, on top of
   exact/nickname matching
 - The `names` array mixing personal names and business names in the same
   list — every name entry is checked against both
@@ -90,6 +91,53 @@ Match. This reproduces the fraud team's call on all 9 sample links.
   and only needs to fabricate a phone number, or vice versa — the scoring
   weights should be revisited periodically against what's actually cheap for
   an attacker to spoof
+
+## Fuzzy matching: Jaro-Winkler over generic edit distance
+
+The initial version used `difflib.SequenceMatcher` (Ratcliff/Obershelp) as a
+catch-all fuzzy fallback. Swapped it for **Jaro-Winkler** (via `rapidfuzz`),
+the standard similarity metric in record-linkage literature for personal
+names specifically, because it weights agreement in the common prefix —
+which is where most real name typos preserve similarity (e.g. "Smith" vs.
+"Smyth") — more heavily than a generic edit-distance-style metric would.
+
+Two calibration points worth noting:
+- The threshold (0.85) was picked empirically, not just carried over from the
+  old metric: "Smith"/"Smyth" scores 0.89 (should match) while two
+  different-but-similar surnames like "Windal"/"Windhorst" score 0.82
+  (should not) — 0.85 separates these correctly.
+- Short tokens (under 4 characters) skip fuzzy matching entirely. Below that
+  length, similarity scores stop being meaningful discriminators (e.g. "cy"
+  vs. "by" looks deceptively close) — legitimate short-name cases are already
+  covered by exact or nickname matching, so this only removes noise.
+
+## Evaluation: `evaluate.py`
+
+`solution.py`'s required output is just a Match/Mismatch verdict per link,
+which doesn't say anything about how good the algorithm actually is.
+`evaluate.py` adds a separate evaluation harness, reusing `solution.py`'s
+loading/scoring functions rather than duplicating logic:
+
+- Compares each link's predicted verdict against a **hand-labeled ground
+  truth** (`extra-questions/ground_truth.json`), which was created by reading
+  `mercuryFraudTeamComments` — the same way the scoring weights themselves
+  were derived. This is strictly an offline evaluation fixture: it is never
+  read by the matching algorithm, consistent with the prompt's note that
+  those comments "are not meant to be considered by your code."
+- Reports a confusion matrix (TP/FP/TN/FN) and precision/recall/F1/accuracy,
+  with **Match as the positive class** (the algorithm approving a transfer).
+- On this 9-link sample, the algorithm scores perfectly (by construction,
+  since the weights were tuned against these same comments) — the harness's
+  value is in being ready to run against a larger, independently-labeled
+  dataset, not in this number.
+
+**Why the confusion matrix matters more than accuracy here**: a false
+positive (approving a link that's actually a mismatch) risks real fraud
+loss, while a false negative (flagging a legitimate customer for review)
+only costs friction. Those aren't symmetric costs, so a real deployment
+should optimize for high recall on the Mismatch/review class even at the
+expense of precision — i.e., tune the threshold to over-flag rather than
+under-flag — and accuracy alone would hide that tradeoff.
 
 ## Toward a better-than-binary system
 
