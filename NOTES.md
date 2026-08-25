@@ -139,28 +139,46 @@ should optimize for high recall on the Mismatch/review class even at the
 expense of precision — i.e., tune the threshold to over-flag rather than
 under-flag — and accuracy alone would hide that tradeoff.
 
-## Toward a better-than-binary system
+## Toward a better-than-binary system: `triage.py`
 
-The score computed in `solution.py` is already a natural confidence signal,
-not just an intermediate value for a threshold. Rather than collapsing it to
-Match/Mismatch, a real system could expose three tiers:
+`solution.py`'s binary threshold conflates two different situations: Link 2
+(phone-only match, score 2) has *some* corroborating evidence, and the fraud
+team's instinct was to call the customer and check, not to assume fraud —
+whereas Links 4 and 9 (score 0) have *zero* overlap, and the fraud team's
+instinct was "possible fraud." Both end up as "Mismatch" under one threshold.
 
-- **High confidence** (well above threshold, e.g. full name + a contact
-  detail): auto-clear.
-- **Medium confidence** (right at/near threshold, e.g. Link 2's phone-only
-  match): route to the fraud team's review queue instead of silently
-  approving or blocking.
-- **Low confidence** (well below threshold, e.g. no overlap at all): block
-  or require additional verification.
+`triage.py` reuses `solution.py`'s scoring (via `evaluate_link`) to instead
+classify each link into one of three tiers, using `HIGH_CONFIDENCE_THRESHOLD`
+alongside the existing `MATCH_THRESHOLD`:
 
-This also opens the door to weighting the score by transfer risk (e.g. dollar
-amount, first-time vs. repeat transfer) rather than using one fixed
-threshold for every case.
+- **High** (total ≥ 5 — a full name match plus a contact detail, or two
+  contact details): auto-clear. Links 1, 3, 5, 7.
+- **Medium** (0 < total < 5 — some evidence, not enough alone): route to
+  automatic micro-deposit verification (`micro_deposit.py`) rather than
+  either blindly approving or blocking. Links 2, 6, 8 — including Link 6,
+  whose only evidence is a single (nickname-resolved) name match with no
+  contact-detail corroboration, and which the binary system would call a
+  confident "Match."
+- **Low** (total = 0 — no evidence at all): block / escalate straight to the
+  fraud team. Links 4, 9.
+
+This also opens the door to weighting the tier boundaries by transfer risk
+(dollar amount, first-time vs. repeat transfer) rather than using fixed
+score cutoffs for every case.
+
+## Micro-deposit verification: `micro_deposit.py`
+
+Implemented as a minimal, self-contained simulation (no real ACH/bank
+integration): `initiate(link_id)` "sends" two small random-cent deposits to
+the linked account; `verify(challenge, submitted_cents)` checks a
+customer-submitted guess against the real amounts, capped at 3 attempts.
+Only someone with actual access to that account's statement can name both
+amounts, which proves account access independently of the Plaid credentials
+already checked. `triage.py` calls this automatically for every Medium-tier
+link instead of requiring a manual fraud-team callback.
 
 ## Other ways to curtail this type of fraud
 
-- Micro-deposit verification as a secondary check alongside Plaid, especially
-  for medium-confidence links
 - Periodic re-authentication through Plaid rather than trusting a link
   indefinitely after the first check
 - Device/IP/behavioral fingerprinting at link-creation time, correlated

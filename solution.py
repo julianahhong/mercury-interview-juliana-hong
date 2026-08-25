@@ -17,6 +17,12 @@ EMAIL_MATCH = 2
 PHONE_MATCH = 2
 MATCH_THRESHOLD = 3
 
+# A second cut above MATCH_THRESHOLD for triage.py's confidence tiers: total
+# score of 0 means no evidence at all (block/escalate), >=5 means a full
+# name match plus a contact detail or better (auto-clear), and anything in
+# between has some but not enough evidence to trust alone (verify).
+HIGH_CONFIDENCE_THRESHOLD = 5
+
 # Jaro-Winkler is the record-linkage standard for name matching (it weights
 # matching prefixes, which suits typical name typos better than generic edit
 # distance). 0.85 catches real typos (e.g. "Smith"/"Smyth" = 0.89) while
@@ -146,6 +152,14 @@ def score_phones(phones, customer):
     return 0
 
 
+def tier(total):
+    if total >= HIGH_CONFIDENCE_THRESHOLD:
+        return "High"
+    if total > 0:
+        return "Medium"
+    return "Low"
+
+
 @dataclass
 class MatchResult:
     name_score: int
@@ -153,6 +167,7 @@ class MatchResult:
     phone_score: int
     total: int
     verdict: str
+    tier: str
 
 
 def evaluate_link(link, customer, nickname_groups):
@@ -161,7 +176,7 @@ def evaluate_link(link, customer, nickname_groups):
     phone_score = score_phones(link["phoneNumbers"], customer)
     total = name_score + email_score + phone_score
     verdict = "Match" if total >= MATCH_THRESHOLD else "Mismatch"
-    return MatchResult(name_score, email_score, phone_score, total, verdict)
+    return MatchResult(name_score, email_score, phone_score, total, verdict, tier(total))
 
 
 def load_data():
